@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Post;
 use App\Models\User;
 use App\Models\Follow;
 use Illuminate\Http\Request;
+use App\Events\OurExampleEvent;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\View;
 use Intervention\Image\ImageManager;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Drivers\Gd\Driver;
 
@@ -21,6 +24,7 @@ class UserController extends Controller
 
         if(auth()->attempt(['username' => $incomingFields['loginusername'], 'password' => $incomingFields['loginpassword']])){
             $request->session()->regenerate();
+            event(new OurExampleEvent(['username' => auth()->user()->username, 'action' => 'login']));
             return redirect('/')->with('success', 'Login efetuado com sucesso!');
         } else {
             return redirect('/')->with('failure', 'Usuário ou senha inválidos!');
@@ -28,6 +32,7 @@ class UserController extends Controller
     }
 
     public function logout(){
+        event(new OurExampleEvent(['username' => auth()->user()->username, 'action' => 'logout']));
         auth()->logout();
         return redirect('/')->with('success', 'Logout efetuado com sucesso!');
     }
@@ -36,7 +41,11 @@ class UserController extends Controller
         if(auth()->check()){
             return view('homepage-feed', ['posts' => auth()->user()->feedPosts()->latest()->paginate(4)]);
         } else {
-            return view('homepage');
+            $postCount = Cache::remember('postCount', 20, function(){
+                return Post::count();
+            });
+
+            return view('homepage', ['postCount' => $postCount]);
         }
     }
 
@@ -82,16 +91,28 @@ class UserController extends Controller
         return view('profile', ['posts' => $posts, 'postsCount' => $postsCount]);
     }
 
+    public function profileRaw(User $user){
+        return response()->json(['html' => view('posts-only', ['posts' => $user->posts()->latest()->get()])->render(), 'docTitle' => $user->username . ' - Perfil']);
+    }
+
     public function profileFollowers(User $user){
         $this->getSharedData($user);
 
         return view('profile-followers', ['followers' => $user->followers()->latest()->get()]);
     }
 
+    public function profileFollowersRaw(User $user){
+        return response()->json(['html' => view('followers-only', ['followers' => $user->followers()->latest()->get()])->render(), 'docTitle' => $user->username . ' - Seguidores']);
+    }
+
     public function profileFollowing(User $user){
         $this->getSharedData($user);
 
         return view('profile-following', ['following' => $user->following()->latest()->get()]);
+    }
+
+    public function profileFollowingRaw(User $user){
+        return response()->json(['html' => view('following-only', ['following' => $user->following()->latest()->get()])->render(), 'docTitle' => $user->username . ' - Seguindo']);
     }
 
     public function showAvatarForm(){

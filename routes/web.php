@@ -1,6 +1,8 @@
 <?php
 
+use App\Events\ChatMessage;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\FollowController;
@@ -51,3 +53,23 @@ Route::get('/profile/{user:username}', [UserController::class, 'profile']);
 Route::get('/profile/{user:username}/followers', [UserController::class, 'profileFollowers']);
 Route::get('/profile/{user:username}/following', [UserController::class, 'profileFollowing']);
 
+Route::middleware('cache.headers:public;max_age=20;etag')->group(function(){
+    Route::get('/profile/{user:username}/raw', [UserController::class, 'profileRaw'])->middleware('cache.headers:public;max_age=20;etag');
+    Route::get('/profile/{user:username}/followers/raw', [UserController::class, 'profileFollowersRaw']);
+    Route::get('/profile/{user:username}/following/raw', [UserController::class, 'profileFollowingRaw']);
+});
+
+//Rota de chat
+Route::post('/send-chat-message', function(Request $request){
+    $formFields = $request->validate([
+        'textValue' => 'required'
+    ]);
+
+    if(!trim(strip_tags($formFields['textValue']))){
+        return response()->noContent();
+    }
+
+    broadcast(new ChatMessage(['username' => auth()->user()->username, 'textValue' => strip_tags($formFields['textValue']), 'avatar' => auth()->user()->avatar]))->toOthers();
+
+    return response()->noContent();
+})->middleware('auth');
