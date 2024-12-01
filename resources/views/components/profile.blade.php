@@ -5,7 +5,7 @@
           <img class="avatar-small" src="{{$sharedData['avatar']}}" /> {{$sharedData['username']}}
           @auth
             @if(!$sharedData['currentlyFollowing'] AND auth()->user()->username != $sharedData['username'])
-             <livewire:addflollow :username="$sharedData['username']"/>
+             <livewire:addfollow :username="$sharedData['username']"/>
             @endif
 
             @if($sharedData['currentlyFollowing'])
@@ -13,7 +13,7 @@
             @endif
 
             @if(auth()->user()->username == $sharedData['username'])
-              <a href="/manage-avatar" class="btn btn-secondary btn-sm">Manage Avatar</a>
+              <a wire:navigate href="/manage-avatar" class="btn btn-secondary btn-sm">Manage Avatar</a>
             @endif
             
           @endauth
